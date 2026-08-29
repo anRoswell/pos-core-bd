@@ -1,0 +1,12 @@
+# Environment variables and secrets (NEVER COMMIT)
+.env
+.env.*
+!.env.example
+
+# IDE and OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
+*.tmp

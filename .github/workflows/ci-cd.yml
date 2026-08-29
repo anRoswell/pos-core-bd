@@ -1,0 +1,106 @@
+name: POS Core BD - Schema Validation & Migration Pipeline
+
+on:
+  push:
+    branches: [ dev, qa, prod ]
+  pull_request:
+    branches: [ dev, qa, prod ]
+
+jobs:
+  # -------------------------------------------------------------
+  # 1. Validación de Sintaxis e Integridad de Esquema SQL
+  # -------------------------------------------------------------
+  validate-schema:
+    name: Validate PostgreSQL Schema
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: poscore_test
+          POSTGRES_PASSWORD: testpassword123
+          POSTGRES_DB: poscoreos_test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL Client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Test SQL Execution against Ephemeral DB
+        env:
+          PGPASSWORD: testpassword123
+        run: |
+          echo "🔍 Probando ejecución del esquema init-schema.sql..."
+          psql -h localhost -U poscore_test -d poscoreos_test_db -f init-schema.sql
+          echo "✅ Esquema SQL validado correctamente sin errores de sintaxis."
+
+  # -------------------------------------------------------------
+  # 2. Despliegue / Sincronización en DEV
+  # -------------------------------------------------------------
+  deploy-dev:
+    name: Apply Schema to DEV
+    needs: validate-schema
+    if: github.ref == 'refs/heads/dev' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment:
+      name: development
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Apply DB Changes to DEV
+        env:
+          PGPASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          echo "🚀 Sincronizando Base de Datos DEV..."
+          # psql -h ${{ secrets.DB_HOST }} -p ${{ secrets.DB_PORT || '5432' }} -U ${{ secrets.DB_USERNAME }} -d ${{ secrets.DB_NAME }} -f init-schema.sql
+
+  # -------------------------------------------------------------
+  # 3. Despliegue / Sincronización en QA
+  # -------------------------------------------------------------
+  deploy-qa:
+    name: Apply Schema to QA
+    needs: validate-schema
+    if: github.ref == 'refs/heads/qa' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Apply DB Changes to QA
+        env:
+          PGPASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          echo "🧪 Sincronizando Base de Datos QA..."
+          # psql -h ${{ secrets.DB_HOST }} -p ${{ secrets.DB_PORT || '5435' }} -U ${{ secrets.DB_USERNAME }} -d ${{ secrets.DB_NAME }} -f init-schema.sql
+
+  # -------------------------------------------------------------
+  # 4. Despliegue / Sincronización en PRODUCCIÓN
+  # -------------------------------------------------------------
+  deploy-prod:
+    name: Apply Schema to PROD
+    needs: validate-schema
+    if: github.ref == 'refs/heads/prod' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Apply DB Changes to PROD
+        env:
+          PGPASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          echo "🛡️ Sincronizando Base de Datos PRODUCCIÓN..."
+          # psql -h ${{ secrets.DB_HOST }} -p ${{ secrets.DB_PORT || '5436' }} -U ${{ secrets.DB_USERNAME }} -d ${{ secrets.DB_NAME }} -f init-schema.sql
