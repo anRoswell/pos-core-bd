@@ -1689,16 +1689,16 @@ WHERE preparation_status IN ('PENDING', 'PREPARING');
 CREATE INDEX IF NOT EXISTS idx_tables_business_status ON restaurant_tables (business_id, current_status);
 
 -- 7. Pedidos Online y Delivery en Curso
-CREATE INDEX IF NOT EXISTS idx_delivery_active_orders ON delivery_orders (business_id, status, created_at DESC) 
-WHERE status IN ('CONFIRMED', 'PREPARING', 'IN_TRANSIT');
+CREATE INDEX IF NOT EXISTS idx_delivery_active_orders ON online_orders (business_id, status, created_at DESC) 
+WHERE status IN ('ORDER_PLACED', 'ACCEPTED', 'IN_PREPARATION', 'ON_THE_WAY');
 
 -- 8. Cajas y Control de Turnos
 CREATE INDEX IF NOT EXISTS idx_sessions_open_shift ON cash_register_sessions (business_id, branch_id, cash_register_id) 
 WHERE status = 'OPEN';
 
 -- 9. Auditoría Forense y Trazabilidad de Seguridad
-CREATE INDEX IF NOT EXISTS idx_audit_logs_forensic ON audit_logs (business_id, entity_type, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_audit_logs_user_history ON audit_logs (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_forensic ON audit_log (business_id, resource_type, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_user_history ON audit_log (user_id, created_at DESC);
 
 -- 10. CRM, Fidelización y Promociones Activas
 CREATE INDEX IF NOT EXISTS idx_loyalty_active_accounts ON customer_loyalty_accounts (business_id, current_points DESC) 
