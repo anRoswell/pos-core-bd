@@ -60,7 +60,7 @@ DO $$ BEGIN
 
     -- Fase 3 Enums (Inventario, Lotes, Compras, Facturación DIAN)
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'inventory_movement_type_enum') THEN
-        CREATE TYPE inventory_movement_type_enum AS ENUM ('SALE', 'PURCHASE', 'ADJUSTMENT_IN', 'ADJUSTMENT_OUT', 'TRANSFER_IN', 'TRANSFER_OUT', 'EXPIRATION_WASTE');
+        CREATE TYPE inventory_movement_type_enum AS ENUM ('SALE', 'PURCHASE', 'ADJUSTMENT_IN', 'ADJUSTMENT_OUT', 'TRANSFER_IN', 'TRANSFER_OUT', 'EXPIRATION_WASTE', 'OUT_ONLINE_ORDER', 'OUT_SALE');
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'physical_count_status_enum') THEN
         CREATE TYPE physical_count_status_enum AS ENUM ('OPEN', 'COMPLETED', 'CANCELLED');
@@ -144,7 +144,11 @@ DO $$ BEGIN
         CREATE TYPE api_key_status_enum AS ENUM ('ACTIVE', 'REVOKED', 'EXPIRED');
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'webhook_event_enum') THEN
-        CREATE TYPE webhook_event_enum AS ENUM ('SALE_COMPLETED', 'SALE_CANCELLED', 'INVENTORY_LOW_STOCK', 'ONLINE_ORDER_CREATED', 'ONLINE_ORDER_DELIVERED', 'CUSTOMER_CREATED');
+        CREATE TYPE webhook_event_enum AS ENUM (
+            'SALE_COMPLETED', 'SALE_CANCELLED', 'INVENTORY_LOW_STOCK', 'ONLINE_ORDER_CREATED', 'ONLINE_ORDER_DELIVERED', 'CUSTOMER_CREATED',
+            'INVOICE_ISSUED', 'PURCHASE_RECEIVED', 'CASH_CLOSED',
+            'invoice.issued', 'purchase.received', 'cash.closed', 'sale.completed'
+        );
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'webhook_delivery_status_enum') THEN
         CREATE TYPE webhook_delivery_status_enum AS ENUM ('SUCCESS', 'FAILED', 'RETRYING');
@@ -156,6 +160,18 @@ DO $$ BEGIN
         CREATE TYPE anomaly_severity_enum AS ENUM ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL');
     END IF;
 END $$;
+
+-- Idempotent schema extension for pre-existing databases
+ALTER TYPE webhook_event_enum ADD VALUE IF NOT EXISTS 'INVOICE_ISSUED';
+ALTER TYPE webhook_event_enum ADD VALUE IF NOT EXISTS 'PURCHASE_RECEIVED';
+ALTER TYPE webhook_event_enum ADD VALUE IF NOT EXISTS 'CASH_CLOSED';
+ALTER TYPE webhook_event_enum ADD VALUE IF NOT EXISTS 'invoice.issued';
+ALTER TYPE webhook_event_enum ADD VALUE IF NOT EXISTS 'purchase.received';
+ALTER TYPE webhook_event_enum ADD VALUE IF NOT EXISTS 'cash.closed';
+ALTER TYPE webhook_event_enum ADD VALUE IF NOT EXISTS 'sale.completed';
+ALTER TYPE inventory_movement_type_enum ADD VALUE IF NOT EXISTS 'OUT_ONLINE_ORDER';
+ALTER TYPE inventory_movement_type_enum ADD VALUE IF NOT EXISTS 'OUT_SALE';
+ALTER TYPE inventory_movement_type_enum ADD VALUE IF NOT EXISTS 'RETURN_IN';
 
 -- -----------------------------------------------------------------------------
 -- 1. TABLA BUSINESSES (Inquilinos / Empresas Multi-Tenant)
@@ -1320,11 +1336,18 @@ CREATE TABLE IF NOT EXISTS online_orders (
     discount_amount DECIMAL(14, 2) NOT NULL DEFAULT 0.00,
     total DECIMAL(14, 2) NOT NULL DEFAULT 0.00,
     status online_order_status_enum NOT NULL DEFAULT 'ORDER_PLACED',
+    confirmation_otp VARCHAR(10) DEFAULT '1234',
+    payment_method VARCHAR(50) DEFAULT 'CASH',
+    payment_status VARCHAR(50) DEFAULT 'PENDING',
     notes TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uq_online_order_number UNIQUE (business_id, order_number)
 );
+
+ALTER TABLE online_orders ADD COLUMN IF NOT EXISTS confirmation_otp VARCHAR(10) DEFAULT '1234';
+ALTER TABLE online_orders ADD COLUMN IF NOT EXISTS payment_method VARCHAR(50) DEFAULT 'CASH';
+ALTER TABLE online_orders ADD COLUMN IF NOT EXISTS payment_status VARCHAR(50) DEFAULT 'PENDING';
 
 -- -----------------------------------------------------------------------------
 -- 59. TABLA ONLINE_ORDER_ITEMS (Detalle de Productos en Pedido Online)
