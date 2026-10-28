@@ -203,7 +203,7 @@ CREATE TABLE IF NOT EXISTS core.businesses (
     city VARCHAR(100),
     state VARCHAR(100),
     country VARCHAR(100) DEFAULT 'Colombia',
-    logo_url VARCHAR(500),
+    logo_url TEXT,
     status business_status_enum NOT NULL DEFAULT 'ACTIVE',
     settings JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
