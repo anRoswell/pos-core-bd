@@ -20,3 +20,4 @@ CREATE INDEX IF NOT EXISTS idx_goods_receipts_invoice_status
 
 CREATE INDEX IF NOT EXISTS idx_goods_receipts_document_type 
   ON inventory.goods_receipts (business_id, document_type);
+
